@@ -130,12 +130,17 @@ function nf9PktDecode(msg,rinfo) {
         var type; var tlen;
 
         // Read the SCOPE
+        let first = true
         var buf = buff.slice(0,osLen);
         while (buf.length > 3) {
             type = buf.readUInt16BE(0);
             tlen = buf.readUInt16BE(2);
             debug('    SCOPE type: %d (%s) len: %d, plen: %d', type,nfTypes[type] ? nfTypes[type].name : 'unknown',tlen,plen);
-            if (type>0) cr+=nfTypes[type].name  + ": " + compileScope(type, plen, tlen);
+            if (type>0) {
+                if(!first) cr += ","
+                else first = false
+                cr+=nfTypes[type].name  + ": " + compileScope(type, plen, tlen);
+            }
             buf = buf.slice(4);
             plen += tlen;
         }
@@ -146,7 +151,11 @@ function nf9PktDecode(msg,rinfo) {
             type = buf.readUInt16BE(0);
             tlen = buf.readUInt16BE(2);
             debug('    FIELD type: %d (%s) len: %d, plen: %d', type,nfTypes[type] ? nfTypes[type].name : 'unknown',tlen,plen);
-            if (type>0) cr+=nfTypes[type].name  + ": " + compileStatement(type, plen, tlen);
+            if (type>0) {
+                if(!first) cr += ","
+                else first = false
+                cr+=nfTypes[type].name  + ": " + compileStatement(type, plen, tlen);
+            }
             buf = buf.slice(4);
             plen += tlen;
         }
