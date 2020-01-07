@@ -1,7 +1,7 @@
 var debug = require('debug')('NetFlowV9');
 
 var decMacRule = {
-    0: "o['$name']=buf.toString('hex',$pos,$pos+$len);"
+    0: "buf.toString('hex',$pos,$pos+$len);"
 };
 
 function nf9PktDecode(msg,rinfo) {
@@ -46,7 +46,7 @@ function nf9PktDecode(msg,rinfo) {
 
     function compileTemplate(list) {
         var i, z, nf, n;
-        var f = "var o = Object.create(null); var t;\n";
+        var f = "let t; return {\n";
         var listLen = list ? list.length : 0;
         for (i = 0, n = 0; i < listLen; i++, n += z.len) {
             z = list[i];
@@ -58,9 +58,9 @@ function nf9PktDecode(msg,rinfo) {
                     compileRule: decMacRule
                 };
             }
-            f += compileStatement(z.type, n, z.len) + ";\n";
+            f += nf.name + ": " + compileStatement(z.type, n, z.len) + ",\n";
         }
-        f += "return o;\n";
+        f += "}";
         debug('The template will be compiled to %s',f);
         return new Function('buf', 'nfTypes', f);
     }
@@ -126,7 +126,7 @@ function nf9PktDecode(msg,rinfo) {
         var buff = buffer.slice(10,len);
         debug('readOptions: len:%d tId:%d osLen:%d oLen:%d for %s:%d',len,tId,osLen,oLen,buff,rinfo.address,rinfo.port);
         var plen = 0;
-        var cr = "var o={ isOption: true }; var t;\n";
+        var cr = "let t; return { isOption: true, \n";
         var type; var tlen;
 
         // Read the SCOPE
@@ -135,7 +135,7 @@ function nf9PktDecode(msg,rinfo) {
             type = buf.readUInt16BE(0);
             tlen = buf.readUInt16BE(2);
             debug('    SCOPE type: %d (%s) len: %d, plen: %d', type,nfTypes[type] ? nfTypes[type].name : 'unknown',tlen,plen);
-            if (type>0) cr+=compileScope(type, plen, tlen);
+            if (type>0) cr+=nfTypes[type].name  + ": " + compileScope(type, plen, tlen);
             buf = buf.slice(4);
             plen += tlen;
         }
@@ -146,12 +146,12 @@ function nf9PktDecode(msg,rinfo) {
             type = buf.readUInt16BE(0);
             tlen = buf.readUInt16BE(2);
             debug('    FIELD type: %d (%s) len: %d, plen: %d', type,nfTypes[type] ? nfTypes[type].name : 'unknown',tlen,plen);
-            if (type>0) cr+=compileStatement(type, plen, tlen);
+            if (type>0) cr+=nfTypes[type].name  + ": " + compileStatement(type, plen, tlen);
             buf = buf.slice(4);
             plen += tlen;
         }
-        cr+="// option "+tId+"\n";
-        cr+="return o;";
+        //cr+="// option "+tId+"\n";
+        cr+="}";
         debug('option template compiled to %s',cr);
         templates[tId] = { len: plen, compiled: new Function('buf','nfTypes',cr) };
         appendTemplate(tId);

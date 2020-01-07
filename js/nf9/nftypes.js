@@ -1,11 +1,11 @@
 var decNumRule = {
-    1: "o['$name']=buf.readUInt8($pos);",
-    2: "o['$name']=buf.readUInt16BE($pos);",
-    3: "o['$name']=buf.readUInt8($pos)*65536+buf.readUInt16BE($pos+1);",
-    4: "o['$name']=buf.readUInt32BE($pos);",
-    5: "o['$name']=buf.readUInt8($pos)*4294967296+buf.readUInt32BE($pos+1);",
-    6: "o['$name']=buf.readUInt16BE($pos)*4294967296+buf.readUInt32BE($pos+2);",
-    8: "o['$name']=buf.readUInt32BE($pos)*4294967296+buf.readUInt32BE($pos+4);"
+    1: "buf.readUInt8($pos)",
+    2: "buf.readUInt16BE($pos)",
+    3: "buf.readUInt8($pos)*65536+buf.readUInt16BE($pos+1)",
+    4: "buf.readUInt32BE($pos)",
+    5: "buf.readUInt8($pos)*4294967296+buf.readUInt32BE($pos+1)",
+    6: "buf.readUInt16BE($pos)*4294967296+buf.readUInt32BE($pos+2)",
+    8: "buf.readUInt32BE($pos)*4294967296+buf.readUInt32BE($pos+4)"
 };
 
 var decTimestamp = decNumRule;
@@ -14,23 +14,23 @@ var decTsMcs = decTimestamp;
 var decTsNs = decTimestamp;
 
 var decIpv4Rule = {
-    4: "o['$name']=(t=buf.readUInt32BE($pos),(parseInt(t/16777216)%256)+'.'+(parseInt(t/65536)%256)+'.'+(parseInt(t/256)%256)+'.'+(t%256));"
+    4: "(t=buf.readUInt32BE($pos),(parseInt(t/16777216)%256)+'.'+(parseInt(t/65536)%256)+'.'+(parseInt(t/256)%256)+'.'+(t%256))"
 };
 
 var decIpv6Rule = {
-    16: "o['$name']=buf.toString('hex',$pos,$pos+$len);"
+    16: "buf.toString('hex',$pos,$pos+$len)"
 };
 
 var decMacRule = {
-    0: "o['$name']=buf.toString('hex',$pos,$pos+$len);"
+    0: "buf.toString('hex',$pos,$pos+$len)"
 };
 
 var decStringRule = {
-    0: 'o[\'$name\']=buf.toString(\'utf8\',$pos,$pos+$len).replace(/\\0/g,\'\');'
+    0: 'buf.toString(\'utf8\',$pos,$pos+$len).replace(/\\0/g,\'\')'
 };
 
 var decAsciiStringRule = {
-    0: 'o[\'$name\']=buf.toString(\'ascii\',$pos,$pos+$len).replace(/\\0/g,\'\');'
+    0: 'buf.toString(\'ascii\',$pos,$pos+$len).replace(/\\0/g,\'\')'
 };
 
 var nfTypes = {
