@@ -16,7 +16,7 @@ function nf9PktDecode(msg,rinfo) {
         seconds: msg.readUInt32BE(8),
         sequence: msg.readUInt32BE(12),
         sourceId: msg.readUInt32BE(16)
-    }, flows: [] };
+    }, flows: [], commands: [] };
 
     function appendTemplate(tId) {
         var id = rinfo.address + ':' + rinfo.port;
@@ -166,12 +166,20 @@ function nf9PktDecode(msg,rinfo) {
         appendTemplate(tId);
     }
 
+    function readControl(buf){
+        var len = buf.readUInt16BE(2);
+        var cmd = buf.readUInt16BE(4);
+        var data = buf.slice(6, len - 6);
+        out.commands.push({cmd, data})
+    }
+
     var buf = msg.slice(20);
     while (buf.length > 3) { // length > 3 allows us to skip padding
         var fsId = buf.readUInt16BE(0);
         var len = buf.readUInt16BE(2);
         if (fsId == 0) readTemplate(buf);
         else if (fsId == 1) readOptions(buf);
+        else if (fsId == 2) readControl(buf);
         else if (fsId > 1 && fsId < 256) {
             debug('Unknown Flowset ID %d!', fsId);
         }
