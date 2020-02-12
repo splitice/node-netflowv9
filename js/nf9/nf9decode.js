@@ -179,6 +179,7 @@ function nf9PktDecode(msg,rinfo = {}) {
         var len = buf.readUInt16BE(2);
         if(len < 4){
             debug("A length of %d for flowset id %d is invalid\n", len, fsId)
+            return out;
         }
         if (fsId == 0) readTemplate(buf);
         else if (fsId == 1) readOptions(buf);
