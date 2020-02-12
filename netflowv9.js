@@ -138,24 +138,11 @@ function NetFlowV9(options = {}) {
             if (rinfo.size<20) return;
             var o = me.nfPktDecode(msg,rinfo);
             var timeMs = (new Date().getTime()) - startTime;
-            if (o && o.flows.length > 0) { // If the packet does not contain flows, only templates we do not decode
+            if (o) { // If the packet does not contain flows, only templates we do not decode
                 o.rinfo = rinfo;
                 o.packet = msg;
                 o.decodeMs = timeMs;
-                if (me.cb)
-                    me.cb(o);
-                else
-                    me.emit('data',o);
-            } else if (o && o.templates) {
-                o.rinfo = rinfo;
-                o.packet = msg;
-                o.decodeMs = timeMs;
-                if (me.templateCb)
-                    me.templateCb(o);
-                else
-                    me.emit('template', o);
-            } else {
-                debug('Undecoded flows',o);
+                me.emit('data',o);
             }
         }
 
