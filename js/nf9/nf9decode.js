@@ -4,7 +4,7 @@ var decMacRule = {
     0: "buf.toString('hex',$pos,$pos+$len);"
 };
 
-function nf9PktDecode(msg,rinfo) {
+function nf9PktDecode(msg,rinfo = {}) {
     var templates = this.nfInfoTemplates(rinfo);
     var nfTypes = this.nfTypes || {};
     var nfScope = this.nfScope || {};

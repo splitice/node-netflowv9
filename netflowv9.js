@@ -38,7 +38,7 @@ function nfPktDecode(msg,rinfo) {
     }
 }
 
-function NetFlowV9(options) {
+function NetFlowV9(options = {}) {
     if (!(this instanceof NetFlowV9)) return new NetFlowV9(options);
     var me = this;
     this.templates = {};
