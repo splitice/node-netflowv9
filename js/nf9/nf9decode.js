@@ -1,15 +1,15 @@
-var debug = require('debug')('NetFlowV9');
+let debug = require('debug')('NetFlowV9');
 
-var decMacRule = {
+let decMacRule = {
     0: "buf.toString('hex',$pos,$pos+$len);"
 };
 
 function nf9PktDecode(msg,rinfo = {}) {
-    var templates = this.nfInfoTemplates(rinfo);
-    var nfTypes = this.nfTypes || {};
-    var nfScope = this.nfScope || {};
+    let templates = this.nfInfoTemplates(rinfo);
+    let nfTypes = this.nfTypes || {};
+    let nfScope = this.nfScope || {};
 
-    var out = { header: {
+    let out = { header: {
         version: msg.readUInt16BE(0),
         count: msg.readUInt16BE(2),
         uptime: msg.readUInt32BE(4),
@@ -19,15 +19,15 @@ function nf9PktDecode(msg,rinfo = {}) {
     }, flows: [], commands: [] };
 
     function appendTemplate(tId) {
-        var id = rinfo.address + ':' + rinfo.port;
+        let id = rinfo.address + ':' + rinfo.port;
         out.templates = out.templates || {};
         out.templates[id] = out.templates[id] || {};
         out.templates[id][tId] = templates[tId];
     }
 
     function compileStatement(type, pos, len) {
-        var nf = nfTypes[type];
-        var cr = null;
+        let nf = nfTypes[type];
+        let cr = null;
         if (nf && nf.compileRule) {
             cr = nf.compileRule[len] || nf.compileRule[0];
             if (cr) {
@@ -45,9 +45,9 @@ function nf9PktDecode(msg,rinfo = {}) {
     }
 
     function compileTemplate(list) {
-        var i, z, nf, n;
-        var f = "let t; return {\n";
-        var listLen = list ? list.length : 0;
+        let i, z, nf, n;
+        let f = "let t; return {\n";
+        let listLen = list ? list.length : 0;
         for (i = 0, n = 0; i < listLen; i++, n += z.len) {
             z = list[i];
             nf = nfTypes[z.type];
@@ -65,20 +65,26 @@ function nf9PktDecode(msg,rinfo = {}) {
         return new Function('buf', 'nfTypes', f);
     }
 
-    function readTemplate(buffer) {
-        // var fsId = buffer.readUInt16BE(0);
-        var len = buffer.readUInt16BE(2);
-        var buf = buffer.slice(4, len);
+    function readTemplate(buf) {
+        // let fsId = buffer.readUInt16BE(0);
+        let len = buf.readUInt16BE(2);
+        if(len > buf.length){
+            throw new RangeError(`NF9 template length too long, got ${len} was a maximum of ${buf.length}`)
+        }
+        buf = buf.slice(4, len);
         while (buf.length > 0) {
-            var tId = buf.readUInt16BE(0);
-            var cnt = buf.readUInt16BE(2);
-            var list = [];
-            var len = 0;
-            for (var i = 0; i < cnt; i++) {
+            let tId = buf.readUInt16BE(0);
+            let cnt = buf.readUInt16BE(2);
+            let list = [];
+            let len = 0;
+            debug('compile template %s for %s:%d', tId, rinfo.address, rinfo.port);
+            if(cnt*4 > buf.len){
+                throw new RangeError(`Template flowset length too long, got ${cnt*4} was a maximum of ${buf.length}`)
+            }
+            for (let i = 0; i < cnt; i++) {
                 list.push({type: buf.readUInt16BE(4 + 4 * i), len: buf.readUInt16BE(6 + 4 * i)});
                 len += buf.readUInt16BE(6 + 4 * i);
             }
-            debug('compile template %s for %s:%d', tId, rinfo.address, rinfo.port);
             templates[tId] = {len: len, list: list, compiled: compileTemplate(list)};
             appendTemplate(tId);
             buf = buf.slice(4 + cnt * 4);
@@ -89,7 +95,7 @@ function nf9PktDecode(msg,rinfo = {}) {
         if (typeof templates[fsId].compiled !== 'function') {
             templates[fsId].compiled = compileTemplate(templates[fsId].list);
         }
-        var o = templates[fsId].compiled(buf, nfTypes);
+        let o = templates[fsId].compiled(buf, nfTypes);
         o.fsId = fsId;
         return o;
     }
@@ -100,8 +106,8 @@ function nf9PktDecode(msg,rinfo = {}) {
             debug('Unknown scope TYPE: %d POS: %d LEN: %d',type,pos,len);
         }
 
-        var nf = nfScope[type];
-        var cr = null;
+        let nf = nfScope[type];
+        let cr = null;
         if (nf.compileRule) {
             cr = nf.compileRule[len] || nf.compileRule[0];
             if (cr) {
@@ -119,19 +125,19 @@ function nf9PktDecode(msg,rinfo = {}) {
     }
 
     function readOptions(buffer) {
-        var len = buffer.readUInt16BE(2);
-        var tId = buffer.readUInt16BE(4);
-        var osLen = buffer.readUInt16BE(6);
-        var oLen = buffer.readUInt16BE(8);
-        var buff = buffer.slice(10,len);
+        let len = buffer.readUInt16BE(2);
+        let tId = buffer.readUInt16BE(4);
+        let osLen = buffer.readUInt16BE(6);
+        let oLen = buffer.readUInt16BE(8);
+        let buff = buffer.slice(10,len);
         debug('readOptions: len:%d tId:%d osLen:%d oLen:%d for %s:%d',len,tId,osLen,oLen,buff,rinfo.address,rinfo.port);
-        var plen = 0;
-        var cr = "let t; return { isOption: true, \n";
-        var type; var tlen;
+        let plen = 0;
+        let cr = "let t; return { isOption: true, \n";
+        let type; let tlen;
 
         // Read the SCOPE
         let first = true
-        var buf = buff.slice(0,osLen);
+        let buf = buff.slice(0,osLen);
         while (buf.length > 3) {
             type = buf.readUInt16BE(0);
             tlen = buf.readUInt16BE(2);
@@ -167,34 +173,59 @@ function nf9PktDecode(msg,rinfo = {}) {
     }
 
     function readControl(buf){
-        var len = buf.readUInt16BE(2);
-        var cmd = buf.readUInt16BE(4);
-        var data = buf.slice(6, len - 6);
+        let len = buf.readUInt16BE(2);
+        let cmd = buf.readUInt16BE(4);
+        let data = buf.slice(6, len - 6);
         out.commands.push({cmd, data})
     }
 
-    var buf = msg.slice(20);
+    function wasRender(w){
+        return `${w[0]}: ${w[1]} bytes`
+    }
+
+    let was = []
+    let buf = msg.slice(20);
     while (buf.length > 3) { // length > 3 allows us to skip padding
-        var fsId = buf.readUInt16BE(0);
-        var len = buf.readUInt16BE(2);
+        let fsId = buf.readUInt16BE(0);
+        let len = buf.readUInt16BE(2);
         if(len < 4){
             debug("A length of %d for flowset id %d is invalid\n", len, fsId)
             return out;
         }
-        if (fsId == 0) readTemplate(buf);
-        else if (fsId == 1) readOptions(buf);
-        else if (fsId == 2) readControl(buf);
-        else if (fsId > 1 && fsId < 256) {
-            debug('Unknown Flowset ID %d!', fsId);
-        }
-        else if (fsId > 255 && typeof templates[fsId] != 'undefined') {
-            var tbuf = buf.slice(4, len);
-            while (tbuf.length >= templates[fsId].len) {
-                out.flows.push(decodeTemplate(fsId, tbuf));
-                tbuf = tbuf.slice(templates[fsId].len);
+        try {
+            if (fsId == 0) {
+                was.push(["template", len])
+                readTemplate(buf);
+            } else if (fsId == 1) {
+                was.push(["options", len])
+                readOptions(buf);
+            } else if (fsId == 2) {
+                was.push(["control", len])
+                readControl(buf);
+            } else if (fsId > 1 && fsId < 256) {
+                was.push(["unknown", len])
+                debug('Unknown Flowset ID %d!', fsId);
             }
-        } else if (fsId > 255) {
-            debug('Unknown template/option data with flowset id %d for %s:%d',fsId,rinfo.address,rinfo.port);
+            else if (fsId > 255 && typeof templates[fsId] != 'undefined') {
+                was.push(["flow", len])
+                let tbuf = buf.slice(4, len);
+                while (tbuf.length >= templates[fsId].len) {
+                    out.flows.push(decodeTemplate(fsId, tbuf));
+                    tbuf = tbuf.slice(templates[fsId].len);
+                }
+            } else if (fsId > 255) {
+                was.push(["unknown2", len])
+                debug('Unknown template/option data with flowset id %d for %s:%d',fsId,rinfo.address,rinfo.port);
+            }
+        } catch(ex){
+            if(ex instanceof RangeError) {
+//                debug(ex)
+                debug(`Message was:\n${was.map(wasRender).join("\n")}`)
+                console.log(buf)
+                throw ex
+            } else{
+                throw ex
+            }
         }
         buf = buf.slice(len);
     }
