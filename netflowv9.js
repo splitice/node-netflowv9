@@ -8,6 +8,7 @@ var dgram = require('dgram');
 var clone = require('clone');
 var util = require('util');
 var e = require('events').EventEmitter;
+var nf9PktDecode = require('./js/nf9/nf9decode');
 var Dequeue = require('dequeue');
 
 var nft = require('./js/nf9/nftypes');
@@ -101,4 +102,5 @@ function NetFlowV9(options = {}) {
 util.inherits(NetFlowV9,e);
 NetFlowV9.prototype.nfInfoTemplates = nfInfoTemplates;
 NetFlowV9.prototype.nfPktDecode = nfPktDecode;
+NetFlowV9.prototype.nf9PktDecode = nf9PktDecode;
 module.exports = NetFlowV9;
