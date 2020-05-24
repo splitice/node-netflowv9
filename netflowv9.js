@@ -14,7 +14,7 @@ var nft = require('./js/nf9/nftypes');
 var nfInfoTemplates = require('./js/nf9/nfinfotempl');
 
 function nfPktDecode(msg,rinfo) {
-    var version = msg.readUInt16BE(0);
+    const version = msg.readUInt16BE(0);
     switch (version) {
         case 9:
             return this.nf9PktDecode(msg,rinfo);
@@ -32,7 +32,6 @@ function NetFlowV9(options = {}) {
     this.nfScope = nft.nfScope;
     this.cb = null;
     this.templateCb = null;
-    this.socketType = 'udp4';
     this.port = null;
     this.fifo = new Dequeue();
     if (typeof options == 'function') this.cb = options; else
@@ -42,22 +41,21 @@ function NetFlowV9(options = {}) {
         if (options.ipv4num) decIpv4Rule[4] = "o['$name']=buf.readUInt32BE($pos);";
         if (options.nfTypes) this.nfTypes = util._extend(this.nfTypes,options.nfTypes); // Inherit nfTypes
         if (options.nfScope) this.nfScope = util._extend(this.nfScope,options.nfScope); // Inherit nfTypes
-        if (options.socketType) this.socketType = options.socketType;
         if (options.port) this.port = options.port;
         if (options.templates) this.templates = options.templates;
         e.call(this,options);
     }
 
-    this.server = dgram.createSocket(this.socketType);
+    this.server = dgram.createSocket(options.socketType || 'udp4');
     this.server.on('message',(msg,rinfo)=>{
-        me.fifo.push([msg, rinfo]);
-        if (!me.closed && me.set) {
-            me.set = false;
+        this.fifo.push([msg, rinfo]);
+        if (!this.closed && this.set) {
+            this.set = false;
             setImmediate(()=>this.fetch())
         }
     });
 
-    this.server.on('close', function() {
+    this.server.on('close', () => {
         this.closed = true;
     });
 
@@ -76,25 +74,6 @@ function NetFlowV9(options = {}) {
             me.server.bind(port);
     };
 
-    this.fetch = function() {
-        while (this.fifo.length > 0 && !this.closed) {
-            var data = me.fifo.shift();
-            var msg = data[0];
-            var rinfo = data[1];
-            var startTime = new Date().getTime();
-            if (rinfo.size<20) return;
-            var o = this.nfPktDecode(msg, rinfo);
-            if (o) { // If the packet does not contain flows, only templates we do not decode
-                o.rinfo = rinfo;
-                o.packet = msg;
-                o.decodeMs = (new Date().getTime()) - startTime;
-                this.emit('data',o);
-            }
-        }
-
-        me.set = true;
-    };
-
     if (this.port) this.listen(options.port, options.host);
 }
 
@@ -102,4 +81,21 @@ util.inherits(NetFlowV9,e);
 NetFlowV9.prototype.nfInfoTemplates = nfInfoTemplates;
 NetFlowV9.prototype.nfPktDecode = nfPktDecode;
 NetFlowV9.prototype.nf9PktDecode = nf9PktDecode;
+
+
+NetFlowV9.prototype.fetch = function() {
+    while (this.fifo.length > 0 && !this.closed) {
+        const [msg,rinfo] = this.fifo.shift();
+        if (rinfo.size<20) return;
+        const o = this.nfPktDecode(msg, rinfo);
+        // If the packet does not contain flows, only templates we do not decode
+        if (!o) return 
+        o.rinfo = rinfo;
+        o.packet = msg;
+        this.emit('data',o)
+    }
+
+    this.set = true;
+}
+
 module.exports = NetFlowV9;
