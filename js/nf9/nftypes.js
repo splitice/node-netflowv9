@@ -21,17 +21,11 @@ var decIpv6Rule = {
     16: "buf.toString('hex',$pos,$pos+$len)"
 };
 
-var decMacRule = {
-    0: "buf.toString('hex',$pos,$pos+$len)"
-};
+var decMacRule = "buf.toString('hex',$pos,$pos+$len)"
 
-var decStringRule = {
-    0: 'buf.toString(\'utf8\',$pos,$pos+$len).replace(/\\0/g,\'\')'
-};
+var decStringRule = 'buf.toString(\'utf8\',$pos,$pos+$len).replace(/\\0/g,\'\')'
 
-var decAsciiStringRule = {
-    0: 'buf.toString(\'ascii\',$pos,$pos+$len).replace(/\\0/g,\'\')'
-};
+var decAsciiStringRule = 'buf.toString(\'ascii\',$pos,$pos+$len).replace(/\\0/g,\'\')'
 
 var nfTypes = {
     1: {name: 'in_bytes', compileRule: decNumRule},

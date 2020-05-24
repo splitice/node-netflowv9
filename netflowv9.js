@@ -5,7 +5,6 @@
 //require('debug').enable('NetFlowV9');
 var debug = require('debug')('NetFlowV9');
 var dgram = require('dgram');
-var clone = require('clone');
 var util = require('util');
 var e = require('events').EventEmitter;
 var nf9PktDecode = require('./js/nf9/nf9decode');
@@ -29,8 +28,8 @@ function NetFlowV9(options = {}) {
     if (!(this instanceof NetFlowV9)) return new NetFlowV9(options);
     var me = this;
     this.templates = {};
-    this.nfTypes = clone(nft.nfTypes);
-    this.nfScope = clone(nft.nfScope);
+    this.nfTypes = nft.nfTypes;
+    this.nfScope = nft.nfScope;
     this.cb = null;
     this.templateCb = null;
     this.socketType = 'udp4';

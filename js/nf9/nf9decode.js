@@ -1,13 +1,32 @@
 let debug = require('debug')('NetFlowV9');
 
-let decMacRule = {
-    0: "buf.toString('hex',$pos,$pos+$len);"
-};
+const decMacRule = "buf.toString('hex',$pos,$pos+$len);"
+
+function compileStatement(nf, variables) {
+    let cr;
+    if (!nf || !(cr = nf.compileRule)) {
+        debug('Unable to compile NAME: %d POS: %d LEN: %d',nf.name,variables.pos,variables.len);
+        return "";
+    }
+
+    if(typeof cr !== 'string'){
+        cr = cr[variables.len]
+    }
+    if (!cr) {
+        debug('Unknown compile NAME: %d POS: %d LEN: %d',nf.name,variables.pos,variables.len);
+        return "";
+    }
+
+    return cr.replace(/\$[a-z]+/g, matched=>variables[matched.substr(1)]);
+}
 
 function nf9PktDecode(msg,rinfo = {}) {
-    let templates = this.nfInfoTemplates(rinfo);
-    let nfTypes = this.nfTypes || {};
-    let nfScope = this.nfScope || {};
+    // Get templates for this server
+    const templates = this.nfInfoTemplates(rinfo);
+
+    // Get parsing types & scope definitions
+    const nfTypes = this.nfTypes || {};
+    const nfScope = this.nfScope || {};
 
     let out = { header: {
         version: msg.readUInt16BE(0),
@@ -25,42 +44,23 @@ function nf9PktDecode(msg,rinfo = {}) {
         out.templates[id][tId] = templates[tId];
     }
 
-    function compileStatement(type, pos, len) {
-        let nf = nfTypes[type];
-        let cr = null;
-        if (nf && nf.compileRule) {
-            cr = nf.compileRule[len] || nf.compileRule[0];
-            if (cr) {
-                return cr.toString().replace(/(\$pos)/g, function (n) {
-                    return pos
-                }).replace(/(\$len)/g, function (n) {
-                    return len
-                }).replace(/(\$name)/g, function (n) {
-                    return nf.name
-                });
-            }
-        }
-        debug('Unknown compile rule TYPE: %d POS: %d LEN: %d',type,pos,len);
-        return "";
-    }
-
     function compileTemplate(list) {
-        let i, z, nf, n;
         let f = "let t; return {\n";
-        let listLen = list ? list.length : 0;
-        for (i = 0, n = 0; i < listLen; i++, n += z.len) {
+        const listLen = list ? list.length : 0;
+        for (let i = 0, n = 0, z; i < listLen; i++, n += z.len) {
             z = list[i];
-            nf = nfTypes[z.type];
+            let nf = nfTypes[z.type];
             if (!nf) {
                 debug('Unknown NF type %d', z.type);
                 nf = nfTypes[z.type] = {
                     name: 'unknown_type_'+ z.type,
                     compileRule: decMacRule
-                };
+                }
             }
-            f += nf.name + ": " + compileStatement(z.type, n, z.len) + ",\n";
+            f += nf.name + ": " + compileStatement(nf, {pos:n, len:z.len}) + ",\n";
         }
         f += "}";
+        
         debug('The template will be compiled to %s',f);
         return new Function('buf', 'nfTypes', f);
     }
@@ -85,7 +85,7 @@ function nf9PktDecode(msg,rinfo = {}) {
                 list.push({type: buf.readUInt16BE(4 + 4 * i), len: buf.readUInt16BE(6 + 4 * i)});
                 len += buf.readUInt16BE(6 + 4 * i);
             }
-            templates[tId] = {len: len, list: list, compiled: compileTemplate(list)};
+            templates[tId] = {len, list, compiled: compileTemplate(list)};
             appendTemplate(tId);
             buf = buf.slice(4 + cnt * 4);
         }
@@ -100,30 +100,6 @@ function nf9PktDecode(msg,rinfo = {}) {
         return o;
     }
 
-    function compileScope(type,pos,len) {
-        if (!nfScope[type]) {
-            nfScope[type] = { name: 'unknown_scope_'+type, compileRule: decMacRule };
-            debug('Unknown scope TYPE: %d POS: %d LEN: %d',type,pos,len);
-        }
-
-        let nf = nfScope[type];
-        let cr = null;
-        if (nf.compileRule) {
-            cr = nf.compileRule[len] || nf.compileRule[0];
-            if (cr) {
-                return cr.toString().replace(/(\$pos)/g, function (n) {
-                    return pos
-                }).replace(/(\$len)/g, function (n) {
-                    return len
-                }).replace(/(\$name)/g, function (n) {
-                    return nf.name
-                });
-            }
-        }
-        debug('Unknown compile scope rule TYPE: %d POS: %d LEN: %d',type,pos,len);
-        return "";
-    }
-
     function readOptions(buffer) {
         let len = buffer.readUInt16BE(2);
         let tId = buffer.readUInt16BE(4);
@@ -136,16 +112,19 @@ function nf9PktDecode(msg,rinfo = {}) {
         let type; let tlen;
 
         // Read the SCOPE
-        let first = true
-        let buf = buff.slice(0,osLen);
+        let buf = buff.slice(0, osLen);
         while (buf.length > 3) {
             type = buf.readUInt16BE(0);
             tlen = buf.readUInt16BE(2);
-            debug('    SCOPE type: %d (%s) len: %d, plen: %d', type,nfTypes[type] ? nfTypes[type].name : 'unknown',tlen,plen);
-            if (type>0) {
-                if(!first) cr += ","
-                else first = false
-                cr+=nfTypes[type].name  + ": " + compileScope(type, plen, tlen);
+            let nf = nfScope[type]
+            if (!nfScope[type]) {
+                nf = nfScope[type] = { name: 'unknown_scope_'+type, compileRule: decMacRule };
+                debug('Unknown scope TYPE: %d POS: %d LEN: %d',type,pos,len);
+            }
+
+            debug('    SCOPE type: %d (%s) len: %d, plen: %d', type, nf ? nf.name : 'unknown',tlen,plen);
+            if (type) {
+                cr+=nf.name  + ": " + compileStatement(nf, {pos:plen, len:tlen})+",\n";
             }
             buf = buf.slice(4);
             plen += tlen;
@@ -156,11 +135,10 @@ function nf9PktDecode(msg,rinfo = {}) {
         while (buf.length > 3) {
             type = buf.readUInt16BE(0);
             tlen = buf.readUInt16BE(2);
-            debug('    FIELD type: %d (%s) len: %d, plen: %d', type,nfTypes[type] ? nfTypes[type].name : 'unknown',tlen,plen);
-            if (type>0) {
-                if(!first) cr += ","
-                else first = false
-                cr+=nfTypes[type].name  + ": " + compileStatement(type, plen, tlen);
+            const nf = nfTypes[type]
+            debug('    FIELD type: %d (%s) len: %d, plen: %d', type, nf ? nf.name : 'unknown',tlen,plen);
+            if (type) {
+                cr+=nf.name  + ": " + compileStatement(nf, {pos:plen, len:tlen}) + ",\n";
             }
             buf = buf.slice(4);
             plen += tlen;
