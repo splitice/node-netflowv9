@@ -32,6 +32,7 @@
   "devDependencies": {
     "benny": "^3.6.14",
     "chai": "^4.2.0",
+    "q-lite": "git+https://github.com/HalleyAssist/q-lite.git",
     "mocha": "^5.2.0"
   }
 }
