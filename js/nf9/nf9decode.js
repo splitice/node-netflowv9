@@ -74,20 +74,20 @@ function nf9PktDecode(msg,rinfo = {}) {
         buf = buf.slice(4, len);
         while (buf.length > 0) {
             let tId = buf.readUInt16BE(0);
-            let cnt = buf.readUInt16BE(2);
+            let cnt = buf.readUInt16BE(2)*4;
             let list = [];
             let len = 0;
             debug('compile template %s for %s:%d', tId, rinfo.address, rinfo.port);
-            if(cnt*4 > buf.len){
-                throw new RangeError(`Template flowset length too long, got ${cnt*4} was a maximum of ${buf.length}`)
+            if(cnt > buf.len){
+                throw new RangeError(`Template flowset length too long, got ${cnt} was a maximum of ${buf.length}`)
             }
-            for (let i = 0; i < cnt; i++) {
-                list.push({type: buf.readUInt16BE(4 + 4 * i), len: buf.readUInt16BE(6 + 4 * i)});
-                len += buf.readUInt16BE(6 + 4 * i);
+            for (let i = 0; i < cnt; i+=4) {
+                list.push({type: buf.readUInt16BE(4 + i), len: buf.readUInt16BE(6 + i)});
+                len += buf.readUInt16BE(6 + i);
             }
             templates[tId] = {len, list, compiled: compileTemplate(list)};
             appendTemplate(tId);
-            buf = buf.slice(4 + cnt * 4);
+            buf = buf.slice(4 + cnt);
         }
     }
 
