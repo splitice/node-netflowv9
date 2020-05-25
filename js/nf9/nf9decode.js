@@ -21,7 +21,7 @@ function compileStatement(nf, variables) {
         return "";
     }
 
-    return cr.replace(/\$[a-z]+/g, matched=>variables[matched.substr(1)]);
+    return nf.name  + ": " + cr.replace(/\$[a-z]+/g, matched=>variables[matched.substr(1)]);
 }
 
 function nf9PktDecode(msg,rinfo = {}) {
@@ -63,7 +63,7 @@ function nf9PktDecode(msg,rinfo = {}) {
                     compileRule: decMacRule
                 }
             }
-            f += nf.name + ": " + compileStatement(nf, {pos:n, len:z.len}) + ",\n";
+            f += compileStatement(nf, {pos:n, len:z.len}) + ",\n";
         }
         f += "}";
         
@@ -91,7 +91,7 @@ function nf9PktDecode(msg,rinfo = {}) {
         let cnt = buf.readUInt16BE(2)*4;
         
         let t
-        let bufSliced = buf.slice(4, cnt)
+        let bufSliced = buf.slice(4, cnt + 4)
         const cacheKey = highwayhash.asString(hashKey, bufSliced);
         t = templateCache[cacheKey]
         if(t) {
@@ -148,7 +148,7 @@ function nf9PktDecode(msg,rinfo = {}) {
 
             debug('    SCOPE type: %d (%s) len: %d, plen: %d', type, nf ? nf.name : 'unknown',tlen,plen);
             if (type) {
-                cr+=nf.name  + ": " + compileStatement(nf, {pos:plen, len:tlen})+",\n";
+                cr+=compileStatement(nf, {pos:plen, len:tlen})+",\n";
             }
             buf = buf.slice(4);
             plen += tlen;
@@ -175,7 +175,7 @@ function nf9PktDecode(msg,rinfo = {}) {
             const nf = nfTypes[type]
             debug('    FIELD type: %d (%s) len: %d, plen: %d', type, nf ? nf.name : 'unknown',tlen,plen);
             if (type) {
-                cr+=nf.name  + ": " + compileStatement(nf, {pos:plen, len:tlen}) + ",\n";
+                cr+=compileStatement(nf, {pos:plen, len:tlen}) + ",\n";
             }
             buf = buf.slice(4);
             plen += tlen;
