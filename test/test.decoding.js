@@ -21,7 +21,7 @@ describe('NetFlowV9', function () {
 
     describe('nfPktDecode', function () {
         it('should be able to decode vyos packet', function (done) {
-            var buffer = new Buffer(VYOS_PACKET, 'hex');
+            var buffer = Buffer.from(VYOS_PACKET, 'hex');
             expect(buffer).to.have.length(VYOS_PACKET.length/2);
             var r = n9.nfPktDecode(buffer);
             const templates = Object.values(r.templates)[0]

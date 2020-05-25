@@ -1,6 +1,10 @@
 let debug = require('debug')('NetFlowV9');
 
+const highwayhash = require('highwayhash');
+
 const decMacRule = "buf.toString('hex',$pos,$pos+$len);"
+
+const hashKey = Buffer.allocUnsafe(32)
 
 function compileStatement(nf, variables) {
     let cr;
@@ -27,6 +31,8 @@ function nf9PktDecode(msg,rinfo = {}) {
     // Get parsing types & scope definitions
     const nfTypes = this.nfTypes || {};
     const nfScope = this.nfScope || {};
+    if(!this._templateCache) this._templateCache = {}
+    const templateCache = this._templateCache
 
     let out = { header: {
         version: msg.readUInt16BE(0),
@@ -65,37 +71,55 @@ function nf9PktDecode(msg,rinfo = {}) {
         return new Function('buf', 'nfTypes', f);
     }
 
-    function readTemplate(buf) {
-        // let fsId = buffer.readUInt16BE(0);
-        let len = buf.readUInt16BE(2);
-        if(len > buf.length){
-            throw new RangeError(`NF9 template length too long, got ${len} was a maximum of ${buf.length}`)
+    function _readTemplate(bufSliced){
+        let list = [];
+        let len = 0;
+        for (let i = 0, cnt = bufSliced.length; i < cnt; i+=4) {
+            let l = bufSliced.readUInt16BE(2 + i)
+            list.push({type: bufSliced.readUInt16BE(i), len: l});
+            len += l;
         }
-        buf = buf.slice(4, len);
-        while (buf.length > 0) {
-            let tId = buf.readUInt16BE(0);
-            let cnt = buf.readUInt16BE(2)*4;
-            let list = [];
-            let len = 0;
+
+        const t = compileTemplate(list)
+        t.len = len
+        t.list = list
+        return t
+    }
+
+    function readTemplate(buf){
+        let tId = buf.readUInt16BE(0);
+        let cnt = buf.readUInt16BE(2)*4;
+        
+        let t
+        let bufSliced = buf.slice(4, cnt)
+        const cacheKey = highwayhash.asString(hashKey, bufSliced);
+        t = templateCache[cacheKey]
+        if(t) {
+            templates[tId] = t
+        }else{
             debug('compile template %s for %s:%d', tId, rinfo.address, rinfo.port);
-            if(cnt > buf.len){
-                throw new RangeError(`Template flowset length too long, got ${cnt} was a maximum of ${buf.length}`)
+            if(cnt > bufSliced.len){
+                throw new RangeError(`Template flowset length too long, got ${cnt} was a maximum of ${bufSliced.length}`)
             }
-            for (let i = 0; i < cnt; i+=4) {
-                list.push({type: buf.readUInt16BE(4 + i), len: buf.readUInt16BE(6 + i)});
-                len += buf.readUInt16BE(6 + i);
-            }
-            templates[tId] = {len, list, compiled: compileTemplate(list)};
-            appendTemplate(tId);
+            t - _readTemplate(bufSliced, cnt)
+            templateCache[cacheKey] = templates[tId] = t
+        }
+        appendTemplate(tId);
+        return cnt
+    }
+
+    function readTemplates(buf, len) {
+        // let fsId = buffer.readUInt16BE(0);
+        buf = buf.slice(4, len);
+
+        while (buf.length > 0) {
+            const cnt = readTemplate(buf)
             buf = buf.slice(4 + cnt);
         }
     }
 
     function decodeTemplate(fsId, buf) {
-        if (typeof templates[fsId].compiled !== 'function') {
-            templates[fsId].compiled = compileTemplate(templates[fsId].list);
-        }
-        let o = templates[fsId].compiled(buf, nfTypes);
+        let o = templates[fsId](buf, nfTypes);
         o.fsId = fsId;
         return o;
     }
@@ -132,6 +156,19 @@ function nf9PktDecode(msg,rinfo = {}) {
 
         // Read the Fields
         buf = buff.slice(osLen);
+
+        /*let t
+        const cacheKey = highwayhash.asString(hashKey, buf);
+        t = templateCache[cacheKey]
+        if(t) {
+            templates[tId] = t
+        }else{
+            debug('compile template %s for %s:%d', tId, rinfo.address, rinfo.port);
+            _readTemplate(buf, osLen)
+            templateCache[cacheKey] = templates[tId] = t
+        }
+        appendTemplate(tId);*/
+
         while (buf.length > 3) {
             type = buf.readUInt16BE(0);
             tlen = buf.readUInt16BE(2);
@@ -146,7 +183,9 @@ function nf9PktDecode(msg,rinfo = {}) {
         //cr+="// option "+tId+"\n";
         cr+="}";
         debug('option template compiled to %s',cr);
-        templates[tId] = { len: plen, compiled: new Function('buf','nfTypes',cr) };
+        const t = new Function('buf','nfTypes',cr)
+        t.len = plen
+        templates[tId] = t
         appendTemplate(tId);
     }
 
@@ -173,7 +212,7 @@ function nf9PktDecode(msg,rinfo = {}) {
         try {
             if (fsId == 0) {
                 was.push(["template", len])
-                readTemplate(buf);
+                readTemplates(buf, len);
             } else if (fsId == 1) {
                 was.push(["options", len])
                 readOptions(buf);

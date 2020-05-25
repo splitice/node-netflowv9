@@ -9,7 +9,7 @@ var VYOS_PACKET = '000900070002549b53b289a200000001000000000000005c0400001500150
 describe('NetFlowV9', function () {
     describe('receiving', function () {
         it('should be able to receive vyos packet', async function () {
-            var buffer = new Buffer(VYOS_PACKET, 'hex');
+            var buffer = Buffer.from(VYOS_PACKET, 'hex');
             expect(buffer).to.have.length(VYOS_PACKET.length/2);
             
             var n9 = NetFlowV9({port: 2055})
