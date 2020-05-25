@@ -50,6 +50,7 @@ describe('NetFlowV9', function () {
             expect(f1).to.have.property('in_pkts', 1);
             
             n9.server.close()
+            client.close()
         });
     });
 
