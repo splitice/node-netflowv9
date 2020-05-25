@@ -101,7 +101,7 @@ function nf9PktDecode(msg,rinfo = {}) {
             if(cnt > bufSliced.len){
                 throw new RangeError(`Template flowset length too long, got ${cnt} was a maximum of ${bufSliced.length}`)
             }
-            t - _readTemplate(bufSliced, cnt)
+            t = _readTemplate(bufSliced, cnt)
             templateCache[cacheKey] = templates[tId] = t
         }
         appendTemplate(tId);
