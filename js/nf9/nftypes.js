@@ -14,7 +14,7 @@ var decTsMcs = decTimestamp;
 var decTsNs = decTimestamp;
 
 var decIpv4Rule = {
-    4: "(t=buf.readUInt32BE($pos),(parseInt(t/16777216)%256)+'.'+(parseInt(t/65536)%256)+'.'+(parseInt(t/256)%256)+'.'+(t%256))"
+    4: "(t=buf.readUInt32BE($pos),((t/16777216)%256)+'.'+((t/65536)%256)+'.'+((t/256)%256)+'.'+(t%256))"
 };
 
 var decIpv6Rule = {
