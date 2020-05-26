@@ -24,6 +24,10 @@ function compileStatement(nf, variables) {
     return nf.name  + ": " + cr.replace(/\$[a-z]+/g, matched=>variables[matched.substr(1)]);
 }
 
+function wasRender(w){
+    return `${w[0]}: ${w[1]} bytes`
+}
+
 function nf9PktDecode(msg,rinfo = {}) {
     // Get templates for this server
     const templates = this.nfInfoTemplates(rinfo);
@@ -190,64 +194,59 @@ function nf9PktDecode(msg,rinfo = {}) {
         out.commands.push({cmd, data})
     }
 
-    function wasRender(w){
-        return `${w[0]}: ${w[1]} bytes`
-    }
-
     let was = []
     let buf = msg.slice(20);
-    while (buf.length > 3) { // length > 3 allows us to skip padding
-        let fsId = buf.readUInt16BE(0);
-        let len = buf.readUInt16BE(2);
-        if(len < 4){
-            debug("A length of %d for flowset id %d is invalid\n", len, fsId)
-            return out;
-        }
-        try {
-            if (fsId === 0)
-            {
-                was.push(["template", len])
-                readTemplates(buf, len);
+    try {
+        while (buf.length > 3) { // length > 3 allows us to skip padding
+            let fsId = buf.readUInt16BE(0);
+            let len = buf.readUInt16BE(2);
+            if(len < 4){
+                debug("A length of %d for flowset id %d is invalid\n", len, fsId)
+                return out;
             }
-            else if (fsId === 1)
-            {
-                was.push(["options", len])
-                readOptions(buf);
-            }
-            else if (fsId === 2)
-            {
-                was.push(["control", len])
-                readControl(buf);
-            }
-            else if (fsId > 255)
-            {
-                const t = templates[fsId]
-                if(t === undefined){
-                    was.push(["unknown2", len])
-                    debug('Unknown template/option data with flowset id %d for %s:%d',fsId,rinfo.address,rinfo.port);
-                }else{
-                    was.push(["flow", len])
-                    let tbuf = buf.slice(4, len);
-                    while (tbuf.length >= t.len) {
-                        out.flows.push(t(tbuf, nfTypes, fsId));
-                        tbuf = tbuf.slice(t.len);
-                    }
+                if (fsId === 0)
+                {
+                    was.push(["template", len])
+                    readTemplates(buf, len);
                 }
-            }else{
-                was.push(["unknown", len])
-                debug('Unknown Flowset ID %d!', fsId);
-            }
-        } catch(ex){
-            if(ex instanceof RangeError) {
-//                debug(ex)
-                debug(`Message was:\n${was.map(wasRender).join("\n")}`)
-                console.log(buf)
-                throw ex
-            } else{
-                throw ex
-            }
+                else if (fsId === 1)
+                {
+                    was.push(["options", len])
+                    readOptions(buf);
+                }
+                else if (fsId === 2)
+                {
+                    was.push(["control", len])
+                    readControl(buf);
+                }
+                else if (fsId > 255)
+                {
+                    const t = templates[fsId]
+                    if(t === undefined){
+                        was.push(["unknown2", len])
+                        debug('Unknown template/option data with flowset id %d for %s:%d',fsId,rinfo.address,rinfo.port);
+                    }else{
+                        was.push(["flow", len])
+                        let tbuf = buf.slice(4, len);
+                        while (tbuf.length >= t.len) {
+                            out.flows.push(t(tbuf, nfTypes, fsId));
+                            tbuf = tbuf.slice(t.len);
+                        }
+                    }
+                }else{
+                    was.push(["unknown", len])
+                    debug('Unknown Flowset ID %d!', fsId);
+                }
+       
+            buf = buf.slice(len);
         }
-        buf = buf.slice(len);
+    } catch(ex){
+        if(ex instanceof RangeError) {
+            debug(`Message was:\n${was.map(wasRender).join("\n")}`)
+            throw ex
+        } else{
+            throw ex
+        }
     }
 
     return out;
