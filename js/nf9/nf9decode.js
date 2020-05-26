@@ -204,30 +204,38 @@ function nf9PktDecode(msg,rinfo = {}) {
             return out;
         }
         try {
-            if (fsId == 0) {
+            if (fsId === 0)
+            {
                 was.push(["template", len])
                 readTemplates(buf, len);
-            } else if (fsId == 1) {
+            }
+            else if (fsId === 1)
+            {
                 was.push(["options", len])
                 readOptions(buf);
-            } else if (fsId == 2) {
+            }
+            else if (fsId === 2)
+            {
                 was.push(["control", len])
                 readControl(buf);
-            } else if (fsId > 1 && fsId < 256) {
+            }
+            else if (fsId > 255)
+            {
+                const t = templates[fsId]
+                if(t === undefined){
+                    was.push(["unknown2", len])
+                    debug('Unknown template/option data with flowset id %d for %s:%d',fsId,rinfo.address,rinfo.port);
+                }else{
+                    was.push(["flow", len])
+                    let tbuf = buf.slice(4, len);
+                    while (tbuf.length >= t.len) {
+                        out.flows.push(t(tbuf, nfTypes, fsId));
+                        tbuf = tbuf.slice(t.len);
+                    }
+                }
+            }else{
                 was.push(["unknown", len])
                 debug('Unknown Flowset ID %d!', fsId);
-            }
-            else if (fsId > 255 && templates[fsId] !== undefined) {
-                was.push(["flow", len])
-                let tbuf = buf.slice(4, len);
-                const t = templates[fsId]
-                while (tbuf.length >= t.len) {
-                    out.flows.push(t(tbuf, nfTypes, fsId));
-                    tbuf = tbuf.slice(t.len);
-                }
-            } else if (fsId > 255) {
-                was.push(["unknown2", len])
-                debug('Unknown template/option data with flowset id %d for %s:%d',fsId,rinfo.address,rinfo.port);
             }
         } catch(ex){
             if(ex instanceof RangeError) {
