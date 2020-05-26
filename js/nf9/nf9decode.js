@@ -222,7 +222,7 @@ function nf9PktDecode(msg,rinfo = {}) {
                 let tbuf = buf.slice(4, len);
                 const t = templates[fsId]
                 while (tbuf.length >= t.len) {
-                    out.flows.push(t(buf, nfTypes, fsId));
+                    out.flows.push(t(nfTypes, buf, fsId));
                     tbuf = tbuf.slice(t.len);
                 }
             } else if (fsId > 255) {
