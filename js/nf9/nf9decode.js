@@ -51,7 +51,7 @@ function nf9PktDecode(msg,rinfo = {}) {
     }
 
     function compileTemplate(list) {
-        let f = "let t; return {\n";
+        let f = "let t; return {fsId,\n";
         const listLen = list ? list.length : 0;
         for (let i = 0, n = 0, z; i < listLen; i++, n += z.len) {
             z = list[i];
@@ -68,7 +68,7 @@ function nf9PktDecode(msg,rinfo = {}) {
         f += "}";
         
         debug('The template will be compiled to %s',f);
-        return new Function('buf', 'nfTypes', f);
+        return new Function('buf', 'nfTypes', 'fsId', f);
     }
 
     function _readTemplate(bufSliced){
@@ -118,12 +118,6 @@ function nf9PktDecode(msg,rinfo = {}) {
         }
     }
 
-    function decodeTemplate(fsId, buf) {
-        let o = templates[fsId](buf, nfTypes);
-        o.fsId = fsId;
-        return o;
-    }
-
     function readOptions(buffer) {
         let len = buffer.readUInt16BE(2);
         let tId = buffer.readUInt16BE(4);
@@ -132,7 +126,7 @@ function nf9PktDecode(msg,rinfo = {}) {
         let buff = buffer.slice(10,len);
         debug('readOptions: len:%d tId:%d osLen:%d oLen:%d for %s:%d',len,tId,osLen,oLen,buff,rinfo.address,rinfo.port);
         let plen = 0;
-        let cr = "let t; return { isOption: true, \n";
+        let cr = "let t; return { fsId, isOption: true, \n";
         let type; let tlen;
 
         // Read the SCOPE
@@ -183,7 +177,7 @@ function nf9PktDecode(msg,rinfo = {}) {
         //cr+="// option "+tId+"\n";
         cr+="}";
         debug('option template compiled to %s',cr);
-        const t = new Function('buf','nfTypes',cr)
+        const t = new Function('buf','nfTypes','fsId',cr)
         t.len = plen
         templates[tId] = t
         appendTemplate(tId);
@@ -223,12 +217,13 @@ function nf9PktDecode(msg,rinfo = {}) {
                 was.push(["unknown", len])
                 debug('Unknown Flowset ID %d!', fsId);
             }
-            else if (fsId > 255 && typeof templates[fsId] != 'undefined') {
+            else if (fsId > 255 && templates[fsId] !== undefined) {
                 was.push(["flow", len])
                 let tbuf = buf.slice(4, len);
-                while (tbuf.length >= templates[fsId].len) {
-                    out.flows.push(decodeTemplate(fsId, tbuf));
-                    tbuf = tbuf.slice(templates[fsId].len);
+                const t = templates[fsId]
+                while (tbuf.length >= t.len) {
+                    out.flows.push(t(buf, nfTypes, fsId));
+                    tbuf = tbuf.slice(t.len);
                 }
             } else if (fsId > 255) {
                 was.push(["unknown2", len])
