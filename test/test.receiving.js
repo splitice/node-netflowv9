@@ -22,35 +22,37 @@ describe('NetFlowV9', function () {
 
             await Q.delay(20)
 
-            const templates = Object.values(n9.templates)[0]
-            expect(templates).to.have.property('1024');
-            expect(templates).to.have.property('1025');
-            expect(templates).to.have.property('2048');
-            expect(templates).to.have.property('2049');
+            try {
+                const templates = Object.values(n9.templates)[0]
+                expect(templates).to.have.property('1024');
+                expect(templates).to.have.property('1025');
+                expect(templates).to.have.property('2048');
+                expect(templates).to.have.property('2049');
 
 
 
-            expect(r).to.have.property('header');
-            expect(r).to.have.property('flows');
+                expect(r).to.have.property('header');
+                expect(r).to.have.property('flows');
 
-            var header = r.header;
-            expect(header).to.have.property('version', 9);
-            expect(header).to.have.property('count', 7);
-            expect(header).to.have.property('uptime', 152731);
-            expect(header).to.have.property('seconds', 1404209570);
-            expect(header).to.have.property('sequence', 1);
-            expect(header).to.have.property('sourceId', 0);
+                var header = r.header;
+                expect(header).to.have.property('version', 9);
+                expect(header).to.have.property('count', 7);
+                expect(header).to.have.property('uptime', 152731);
+                expect(header).to.have.property('seconds', 1404209570);
+                expect(header).to.have.property('sequence', 1);
+                expect(header).to.have.property('sourceId', 0);
 
-            var flows = r.flows;
-            expect(flows).to.have.length(2);
-            
-            var f1 = flows[1];
-            expect(f1).to.have.property('ipv4_src_addr', '10.100.0.84');
-            expect(f1).to.have.property('ipv4_dst_addr', '192.0.76.2');
-            expect(f1).to.have.property('in_pkts', 1);
-            
-            n9.server.close()
-            client.close()
+                var flows = r.flows;
+                expect(flows).to.have.length(2);
+                
+                var f1 = flows[1];
+                expect(f1).to.have.property('ipv4_src_addr', '10.100.0.84');
+                expect(f1).to.have.property('ipv4_dst_addr', '192.0.76.2');
+                expect(f1).to.have.property('in_pkts', 1);
+            } finally {
+                n9.server.close()
+                client.close()
+            }
         });
     });
 
