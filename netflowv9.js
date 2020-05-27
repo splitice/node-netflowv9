@@ -8,7 +8,7 @@ var dgram = require('dgram');
 var util = require('util');
 var e = require('events').EventEmitter;
 var nf9PktDecode = require('./lib/nf9/nf9decode');
-var Dequeue = require('dequeue');
+const FifoQueue = require('./lib/FifoQueue')
 
 var nft = require('./lib/nf9/nftypes');
 var nfInfoTemplates = require('./lib/nf9/nfinfotempl');
@@ -33,7 +33,7 @@ function NetFlowV9(options = {}) {
     this.cb = null;
     this.templateCb = null;
     this.port = null;
-    this.fifo = new Dequeue();
+    this.fifo = new FifoQueue(options.queueSize || 2048);
     if (typeof options == 'function') this.cb = options; else
     if (typeof options.cb == 'function') this.cb = options.cb;
     if (typeof options.templateCb == 'function') this.templateCb = options.templateCb;
@@ -48,7 +48,7 @@ function NetFlowV9(options = {}) {
 
     this.server = dgram.createSocket(options.socketType || 'udp4');
     this.server.on('message',(msg,rinfo)=>{
-        this.fifo.push([msg, rinfo]);
+        this.fifo.push({msg, rinfo});
         if (!this.closed && this.set) {
             this.set = false;
             setImmediate(()=>this.fetch())
@@ -74,6 +74,10 @@ function NetFlowV9(options = {}) {
             me.server.bind(port);
     };
 
+    this.getDropped = function(){
+        return this.fifo.dropped
+    }
+
     if (this.port) this.listen(options.port, options.host);
 }
 
@@ -84,8 +88,8 @@ NetFlowV9.prototype.nf9PktDecode = nf9PktDecode;
 
 
 NetFlowV9.prototype.fetch = function() {
-    while (this.fifo.length > 0 && !this.closed) {
-        const [msg,rinfo] = this.fifo.shift();
+    const all = this.fifo.shiftAll()
+    for(const {msg,rinfo} of all){
         if (rinfo.size<20) return;
         const o = this.nfPktDecode(msg, rinfo);
         // If the packet does not contain flows, only templates we do not decode
