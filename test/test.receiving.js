@@ -12,7 +12,7 @@ describe('NetFlowV9', function () {
             var buffer = Buffer.from(VYOS_PACKET, 'hex');
             expect(buffer).to.have.length(VYOS_PACKET.length/2);
             
-            var n9 = NetFlowV9({port: 2055})
+            var n9 = new NetFlowV9({port: 2055})
 
             let r
             n9.on('data', _r=>r=_r)
