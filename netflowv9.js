@@ -7,11 +7,11 @@ var debug = require('debug')('NetFlowV9');
 var dgram = require('dgram');
 var util = require('util');
 var e = require('events').EventEmitter;
-var nf9PktDecode = require('./js/nf9/nf9decode');
+var nf9PktDecode = require('./lib/nf9/nf9decode');
 var Dequeue = require('dequeue');
 
-var nft = require('./js/nf9/nftypes');
-var nfInfoTemplates = require('./js/nf9/nfinfotempl');
+var nft = require('./lib/nf9/nftypes');
+var nfInfoTemplates = require('./lib/nf9/nfinfotempl');
 
 function nfPktDecode(msg,rinfo) {
     const version = msg.readUInt16BE(0);
