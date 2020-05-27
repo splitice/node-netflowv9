@@ -6,7 +6,7 @@
 var debug = require('debug')('NetFlowV9');
 var dgram = require('dgram');
 var util = require('util');
-var e = require('events').EventEmitter;
+var EventEmitter = require('asynchronous-emitter');
 var nf9PktDecode = require('./lib/nf9/nf9decode');
 const FifoQueue = require('./lib/FifoQueue')
 
@@ -43,7 +43,7 @@ function NetFlowV9(options = {}) {
         if (options.nfScope) this.nfScope = util._extend(this.nfScope,options.nfScope); // Inherit nfTypes
         if (options.port) this.port = options.port;
         if (options.templates) this.templates = options.templates;
-        e.call(this,options);
+        EventEmitter.call(this,options);
     }
 
     this.server = dgram.createSocket(options.socketType || 'udp4');
@@ -81,13 +81,13 @@ function NetFlowV9(options = {}) {
     if (this.port) this.listen(options.port, options.host);
 }
 
-util.inherits(NetFlowV9,e);
+util.inherits(NetFlowV9,EventEmitter);
 NetFlowV9.prototype.nfInfoTemplates = nfInfoTemplates;
 NetFlowV9.prototype.nfPktDecode = nfPktDecode;
 NetFlowV9.prototype.nf9PktDecode = nf9PktDecode;
 
 
-NetFlowV9.prototype.fetch = function() {
+NetFlowV9.prototype.fetch = async function() {
     const all = this.fifo.shiftAll()
     for(const {msg,rinfo} of all){
         if (rinfo.size<20) return;
@@ -96,7 +96,7 @@ NetFlowV9.prototype.fetch = function() {
         if (!o) return 
         o.rinfo = rinfo;
         o.packet = msg;
-        this.emit('data',o)
+        await this.emit('data',o)
     }
 
     this.set = true;

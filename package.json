@@ -24,6 +24,7 @@
     "url": "https://github.com/delian/node-netflowv9/issues"
   },
   "dependencies": {
+    "asynchronous-emitter": "^0.1.0",
     "clone": "^1.0.4",
     "debug": "^4.1.0",
     "highwayhash": "^2.5.0"
