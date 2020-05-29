@@ -94,6 +94,10 @@ class NetFlowV9 extends EventEmitter {
     
         this.set = true;
     }
+
+    static decIpv4ToString(t){
+        return ((~~(t/16777216))%256)+'.'+((~~(t/65536))%256)+'.'+((~~(t/256))%256)+'.'+(t%256)
+    }
 }
 
 NetFlowV9.prototype.nfInfoTemplates = nfInfoTemplates;
