@@ -10,7 +10,7 @@ var EventEmitter = require('asynchronous-emitter');
 var nf9PktDecode = require('./lib/nf9/nf9decode');
 const FifoQueue = require('./lib/FifoQueue')
 
-var nft = require('./lib/nf9/nftypes');
+const NfTypes = require('./lib/nf9/nftypes');
 var nfInfoTemplates = require('./lib/nf9/nfinfotempl');
 
 function nfPktDecode(msg,rinfo) {
@@ -28,6 +28,7 @@ class NetFlowV9 extends EventEmitter {
     constructor(options = {}) {
         super()
         this.templates = {};
+        const nft = NfTypes(options)
         this.nfTypes = nft.nfTypes;
         this.nfScope = nft.nfScope;
         this.cb = null;
@@ -38,7 +39,6 @@ class NetFlowV9 extends EventEmitter {
         if (typeof options.cb == 'function') this.cb = options.cb;
         if (typeof options.templateCb == 'function') this.templateCb = options.templateCb;
         if (typeof options == 'object') {
-            if (options.ipv4num) decIpv4Rule[4] = "o['$name']=buf.readUInt32BE($pos);";
             if (options.nfTypes) this.nfTypes = util._extend(this.nfTypes,options.nfTypes); // Inherit nfTypes
             if (options.nfScope) this.nfScope = util._extend(this.nfScope,options.nfScope); // Inherit nfTypes
             if (options.port) this.port = options.port;
