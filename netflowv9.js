@@ -81,18 +81,22 @@ class NetFlowV9 extends EventEmitter {
     }
 
     async fetch () {
-        const all = this.fifo.shiftAll()
-        for(const {msg,rinfo} of all){
-            if (rinfo.size<20) return;
-            const o = this.nfPktDecode(msg, rinfo);
-            // If the packet does not contain flows, only templates we do not decode
-            if (!o) return 
-            o.rinfo = rinfo;
-            o.packet = msg;
-            await this.emit('data',o)
+        try {
+            const all = this.fifo.shiftAll()
+            for(const {msg,rinfo} of all){
+                if (rinfo.size<20) return;
+                const o = this.nfPktDecode(msg, rinfo);
+                // If the packet does not contain flows, only templates we do not decode
+                if (!o) return 
+                o.rinfo = rinfo;
+                o.packet = msg;
+                await this.emit('data',o)
+            }
+        } catch(ex){
+            debug(`An exception occurred while handling message, ex: ${ex}`)
+        }finally {
+            this.set = true;
         }
-    
-        this.set = true;
     }
 
     static decIpv4ToString(t){
